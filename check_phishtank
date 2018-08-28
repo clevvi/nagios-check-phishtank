@@ -1,51 +1,87 @@
 #/bin/bash
 
 tmp_folder="/tmp"
-file_name="online-valid.csv"
 file_expiry_mins=60
 search_string=$1
 phishtank_api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+flock_timeout=20
+
+# don't run with no args
+if [ $# -lt 1 ]
+then
+        echo "Arguments are missing!  Run ./check_phishtank <search string> [json or csv]"
+	echo "    json is slower due to size, but includes IP, CIDR, AS number etc." 
+	echo "       Eg:  ./check_phishtank clevvi json"
+	exit 1
+fi
+
+# enable either json or csv file (json is slower due to size, but includes IP, CIDR, AS number etc)
+
+if [ "$2" = "json" ]
+then
+	file_name="online-valid.json.bz2"
+else
+	file_name="online-valid.csv.bz2"
+fi	
+
+# basic file locking so we don't do two consecutive downloads
+# using flock would be more elegant, but I haven't been able to make it work with Nagios thus far...
+while [  $flock_timeout -gt 0 ]; do
+	if [ -f $tmp_folder/check_phishtank.lock ] 
+	then
+		sleep 1
+	else
+		break
+	fi	
+	let flock_timeout-=1
+done
+
+if [ -f $tmp_folder/check_phishtank.lock ]
+then
+	echo "UNKNOWN: lock file still exists after $flock_timeout seconds"
+	exit 3
+fi
+touch $tmp_folder/check_phishtank.lock	
 
 # first see if the file exists, and if so, if it is stale
 if [ -f $tmp_folder/$file_name ]
 then
-        # echo "file exists..."
-        file_expired=$( find $tmp_folder/$file_name -mmin +$file_expiry_mins | egrep '.*' )
+	# echo "file exists..."
+	file_expired=$( find $tmp_folder/$file_name -mmin +$file_expiry_mins | egrep '.*' )
 else
-#       echo "file not present..."
-        file_expired=true
+#	echo "file not present..."
+	file_expired=true
 fi
 
 # if the file needs to be (re)downloaded, do so
 if [ $file_expired ]
 then
-        #echo "file expired...refreshing..."
-        wget -q -O $tmp_folder/$file_name".bz2" 'http://data.phishtank.com/data/$phishtank_api_key/online-valid.csv.bz2'
-        if [[ $? -ne 0 ]]; then
-                echo "UNKNOWN: unable to download Phishtank file"
-                rm $tmp_folder/$file_name".bz2"
-                exit 3
-        else
-                bunzip2 -q -f $tmp_folder/$file_name".bz2"
-                if [[ $? -ne 0 ]]; then
-                        echo "UNKNOWN: unable to bunzip2 Phishtank file"
-                        exit 3
-                fi
-        fi
+	#echo "file expired...refreshing..."
+	wget -q -O $tmp_folder/$file_name "http://data.phishtank.com/data/$phishtank_api_key/$file_name"
+	if [[ $? -ne 0 ]]; then
+		echo "UNKNOWN: unable to download Phishtank file"
+		rm $tmp_folder/check_phishtank.lock
+		exit 3
+	fi
 fi
 
 # check for badness
-grep -l $search_string $tmp_folder/$file_name
+# echo "looking for $search_string"
+bzgrep -l $search_string $tmp_folder/$file_name 
 
 if [ $? != 1 ];
-then
-        output=$(grep $search_string $tmp_folder/$file_name)
-        echo "CRITICAL: $search_string - $output"
-        exit 2
+then 
+	output=$(bzgrep $search_string $tmp_folder/$file_name)
+	echo "CRITICAL: $search_string - $output"
+	rm $tmp_folder/check_phishtank.lock
+	exit 2
 else
-        echo "OK: $search_string"
-        exit 0
+	echo "OK: $search_string"
+	rm $tmp_folder/check_phishtank.lock
+	exit 0
 fi
 
 echo "UNKNOWN: Should never have reached this point"
+rm $tmp_folder/check_phishtank.lock
 exit 3
+
