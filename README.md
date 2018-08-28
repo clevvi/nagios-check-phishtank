@@ -3,11 +3,14 @@
 Features
 --------
 
-This plugin downloads the Phishtank database in CSV and checks it for a string.
+This plugin downloads the Phishtank database in CSV or XML and checks it for a string.
 
 The database is only refreshed every 60 minutes (by default), so it is safe to run the check script frequently (eg. against many domains).
 
 There is no need to check for a fully qualified domain name. If your domain names is www.example.org, it is safe to search 'example' or 'example.org'.
+
+* Use CSV if you want to match a domain name (or part thereof). CSV is faster, as it is a smaller file.
+* Use XML if you want to match an IP address, CIDR range or AS number. XML is slower due to the much larger file size, but has more data.
 
 
 Requirements
