@@ -36,6 +36,7 @@ Usage
 
 Syntax:
 
-	check_phishtank <search string>
+	check_phishtank <search string> [xml|csv]
 
-`<search string>` is the domain (or part thereof) to check the Phishtank database for
+`<search string>` is the domain/IP/CIDR range/ASN (or part thereof) to check the Phishtank database for.
+`xml` or `csv` specify the Phishtank database file to use. CSV is faster, but does not include CIDR range or AS number (for example).
