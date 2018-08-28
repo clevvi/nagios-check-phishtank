@@ -9,20 +9,26 @@ flock_timeout=20
 # don't run with no args
 if [ $# -lt 1 ]
 then
-        echo "Arguments are missing!  Run ./check_phishtank <search string> [json or csv]"
-	echo "    json is slower due to size, but includes IP, CIDR, AS number etc." 
-	echo "       Eg:  ./check_phishtank clevvi json"
-	exit 1
+        echo "Arguments are missing!  Run ./check_phishtank <search string> [xml or csv]"
+	echo "    xml is slower due to size, but includes IP, CIDR, AS number etc." 
+	echo "       Eg:  ./check_phishtank clevvi.com.au"
+	echo "       Eg:  ./check_phishtank '<announcing_network>136277</announcing_network>' xml"
+	exit 3
 fi
 
 # enable either json or csv file (json is slower due to size, but includes IP, CIDR, AS number etc)
 
 if [ "$2" = "json" ]
 then
-	file_name="online-valid.json.bz2"
+#	file_name="online-valid.json.bz2"
+	echo "Don't use json right now, as there are no line breaks and zgrep returns the whole file..."
+	exit 3
+elif [ "$2" = "xml" ]
+then
+	file_name="online-valid.xml.bz2"
 else
 	file_name="online-valid.csv.bz2"
-fi	
+fi
 
 # basic file locking so we don't do two consecutive downloads
 # using flock would be more elegant, but I haven't been able to make it work with Nagios thus far...
